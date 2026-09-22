@@ -1,0 +1,8 @@
+{
+  "name": "Remix Muscat Duty Free Alert System",
+  "description": "Real-time emergency alert and notification platform for Muscat Duty Free staff integrated with ESP32 physical buttons and FCM.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

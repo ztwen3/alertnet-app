@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">MDF-AlertNet</string>
+    <string name="title_activity_main">MDF-AlertNet</string>
+    <string name="package_name">com.muscatdutyfree.alertnet</string>
+    <string name="custom_url_scheme">com.muscatdutyfree.alertnet</string>
+</resources>

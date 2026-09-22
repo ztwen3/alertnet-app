@@ -1,0 +1,61 @@
+{
+  "entities": {
+    "alerts": {
+      "title": "Alerts",
+      "description": "Emergency alerts received from ESP32 devices or manual triggers",
+      "properties": {
+        "title": { "type": "string" },
+        "type": { "type": "string" },
+        "message": { "type": "string" },
+        "location": { "type": "string" },
+        "deviceId": { "type": "string" },
+        "status": { "type": "string" },
+        "timestamp": { "type": "string" },
+        "createdAt": { "type": "number" },
+        "viewedBy": { "type": "string" },
+        "viewedAt": { "type": "string" },
+        "completedBy": { "type": "string" },
+        "completedAt": { "type": "string" },
+        "notes": { "type": "string" }
+      },
+      "required": ["title", "type", "message", "status", "createdAt"]
+    },
+    "esp32Devices": {
+      "title": "ESP32 Devices",
+      "description": "Registered ESP32 hardware units",
+      "properties": {
+        "deviceId": { "type": "string" },
+        "name": { "type": "string" },
+        "type": { "type": "string" },
+        "location": { "type": "string" },
+        "status": { "type": "string" },
+        "lastPing": { "type": "string" },
+        "apiKey": { "type": "string" }
+      },
+      "required": ["deviceId", "name", "location"]
+    },
+    "appSettings": {
+      "title": "App Settings",
+      "description": "System settings for sounds and alert types",
+      "properties": {
+        "soundEnabled": { "type": "boolean" },
+        "customerSound": { "type": "string" },
+        "itSound": { "type": "string" },
+        "customerAlertsEnabled": { "type": "boolean" },
+        "itAlertsEnabled": { "type": "boolean" },
+        "volume": { "type": "number" }
+      }
+    },
+    "staffUsers": {
+      "title": "Staff Users",
+      "description": "Registered Muscat Duty Free staff members",
+      "properties": {
+        "email": { "type": "string" },
+        "name": { "type": "string" },
+        "role": { "type": "string" },
+        "department": { "type": "string" },
+        "active": { "type": "boolean" }
+      }
+    }
+  }
+}

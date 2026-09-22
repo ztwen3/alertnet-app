@@ -1,0 +1,26 @@
+{
+  "name": "MDF-AlertNet | Muscat Duty Free Alert System",
+  "short_name": "MDF Alert",
+  "description": "Real-time emergency POS alerts and customer assistance notifications for Muscat Duty Free",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#0A0A0A",
+  "theme_color": "#0A0A0A",
+  "categories": ["business", "productivity", "utilities"],
+  "icons": [
+    {
+      "src": "/icon.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
