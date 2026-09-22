@@ -11,48 +11,128 @@ jobs:
     runs-on: macos-14
 
     steps:
+      # 1. تحميل المشروع
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # 2. تثبيت Node.js
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '22'
+          cache: 'npm'
 
+      # 3. تثبيت مكتبات المشروع
       - name: Install dependencies
         run: npm install
 
+      # 4. بناء مشروع الويب
       - name: Build Web App
         run: npm run build
 
-      - name: Sync Capacitor iOS
+      # 5. التأكد من وجود مشروع iOS
+      - name: Check iOS Project
         run: |
-          npx cap add ios || true
-          npx cap copy ios
+          echo "Checking iOS project..."
+          ls -la ios || true
+          ls -la ios/App || true
 
-      # تشغيل pod install مع إرجاع المسار للمشروع بشكل مباشر
+          if [ ! -d "ios/App/App.xcodeproj" ]; then
+            echo "ERROR: ios/App/App.xcodeproj not found!"
+            exit 1
+          fi
+
+          echo "iOS Xcode project found."
+
+      # 6. مزامنة Capacitor مع iOS
+      - name: Sync Capacitor iOS
+        run: npx cap sync ios
+
+      # 7. تثبيت CocoaPods
       - name: Install CocoaPods
         run: |
           cd ios/App
-          pod install --project-directory=.
 
-      - name: Build Unsigned IPA
+          echo "Current directory:"
+          pwd
+
+          echo "Files:"
+          ls -la
+
+          echo "Installing CocoaPods..."
+          pod install --repo-update
+
+      # 8. عرض معلومات Xcode للتأكد
+      - name: Check Xcode Workspace
         run: |
-          xcodebuild -workspace ios/App/App.xcworkspace \
-                     -scheme App \
-                     -configuration Release \
-                     -sdk iphoneos \
-                     -derivedDataPath build \
-                     CODE_SIGN_IDENTITY="" \
-                     CODE_SIGNING_REQUIRED=NO \
-                     CODE_SIGNING_ALLOWED=NO
-          
+          echo "Xcode version:"
+          xcodebuild -version
+
+          echo "iOS App directory:"
+          ls -la ios/App
+
+          echo "Workspace:"
+          ls -la ios/App/App.xcworkspace
+
+      # 9. بناء التطبيق بدون توقيع
+      - name: Build Unsigned iOS App
+        run: |
+          set -o pipefail
+
+          xcodebuild \
+            -workspace ios/App/App.xcworkspace \
+            -scheme App \
+            -configuration Release \
+            -sdk iphoneos \
+            -derivedDataPath build \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            clean build
+
+      # 10. التأكد من إنشاء App.app
+      - name: Check App Build
+        run: |
+          APP_PATH="build/Build/Products/Release-iphoneos/App.app"
+
+          if [ ! -d "$APP_PATH" ]; then
+            echo "ERROR: App.app was not generated."
+            echo "Build products:"
+            find build/Build/Products -maxdepth 3 -type d || true
+            exit 1
+          fi
+
+          echo "App.app generated successfully:"
+          ls -la "$APP_PATH"
+
+      # 11. إنشاء Payload
+      - name: Create Payload
+        run: |
+          rm -rf Payload
           mkdir -p Payload
-          cp -r build/Build/Products/Release-iphoneos/App.app Payload/
+
+          cp -R \
+            build/Build/Products/Release-iphoneos/App.app \
+            Payload/App.app
+
+          echo "Payload created:"
+          ls -la Payload
+
+      # 12. إنشاء IPA
+      - name: Create Unsigned IPA
+        run: |
+          rm -f App-Unsigned.ipa
+
           zip -r App-Unsigned.ipa Payload
 
+          echo "IPA created:"
+          ls -lh App-Unsigned.ipa
+
+      # 13. رفع IPA إلى GitHub Artifacts
       - name: Upload IPA Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ios-app-unsigned
+          name: AlertNet-iOS-Unsigned
           path: App-Unsigned.ipa
+          if-no-files-found: error
+          retention-days: 30
