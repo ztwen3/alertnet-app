@@ -1,4 +1,4 @@
-name: Build iOS IPA (Capacitor)
+name: Build iOS IPA
 
 on:
   push:
@@ -11,25 +11,27 @@ jobs:
     runs-on: macos-14
 
     steps:
+
       # ==========================================
-      # 1. Checkout
+      # Checkout
       # ==========================================
       - name: Checkout repository
         uses: actions/checkout@v4
 
+
       # ==========================================
-      # 2. Setup Node.js
-      # لا نستخدم npm cache لأن package-lock.json غير موجود
+      # Node.js
       # ==========================================
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '22'
 
+
       # ==========================================
-      # 3. Show versions
+      # Environment information
       # ==========================================
-      - name: Show environment versions
+      - name: Show versions
         run: |
           echo "Node:"
           node --version
@@ -40,57 +42,86 @@ jobs:
           echo "Xcode:"
           xcodebuild -version
 
+
       # ==========================================
-      # 4. Install dependencies
+      # Install NPM packages
       # ==========================================
       - name: Install dependencies
         run: npm install
 
+
       # ==========================================
-      # 5. Build Web App
+      # Build React / Vite
       # ==========================================
       - name: Build Web App
         run: npm run build
 
+
       # ==========================================
-      # 6. Check iOS project
+      # Make sure Capacitor iOS package exists
       # ==========================================
-      - name: Check iOS Project
+      - name: Install Capacitor iOS
         run: |
-          echo "Checking ios folder..."
+          npm install @capacitor/ios
 
-          ls -la
-          ls -la ios || true
-          ls -la ios/App || true
-
-          if [ ! -d "ios/App/App.xcodeproj" ]; then
-            echo "ERROR: ios/App/App.xcodeproj not found!"
-            exit 1
-          fi
-
-          echo "App.xcodeproj found successfully."
 
       # ==========================================
-      # 7. Capacitor Sync
+      # Remove incomplete iOS project
       # ==========================================
-      - name: Sync Capacitor iOS
+      - name: Remove old incomplete iOS project
+        run: |
+          echo "Removing old incomplete ios folder..."
+
+          rm -rf ios
+
+          echo "Old ios folder removed."
+
+
+      # ==========================================
+      # Create fresh iOS project
+      # ==========================================
+      - name: Create iOS Project
+        run: |
+          echo "Creating fresh Capacitor iOS project..."
+
+          npx cap add ios
+
+          echo ""
+          echo "iOS project created."
+          echo ""
+
+          ls -la ios
+          ls -la ios/App
+
+
+      # ==========================================
+      # Capacitor Sync
+      # ==========================================
+      - name: Sync Capacitor
         run: |
           npx cap sync ios
 
-      # ==========================================
-      # 8. Check Podfile
-      # ==========================================
-      - name: Check Podfile
-        run: |
-          echo "Podfile contents:"
-          cat ios/App/Podfile
 
-          echo ""
-          echo "Files inside ios/App:"
+      # ==========================================
+      # Verify Xcode project
+      # ==========================================
+      - name: Verify Xcode Project
+        run: |
+          echo "Checking Xcode project..."
+
           ls -la ios/App
 
+          if [ ! -d "ios/App/App.xcodeproj" ]; then
+            echo "ERROR: App.xcodeproj still not found!"
+            exit 1
+          fi
+
+          echo ""
+          echo "App.xcodeproj FOUND successfully."
+
+
       # ==========================================
-      # 9. Install CocoaPods
+      # CocoaPods
       # ==========================================
       - name: Install CocoaPods
         run: |
@@ -99,35 +130,81 @@ jobs:
           echo "Current directory:"
           pwd
 
-          echo "Installing CocoaPods..."
+          echo ""
+          echo "Files:"
+          ls -la
 
-          pod install --repo-update
+          if [ -f "Podfile" ]; then
 
-      # ==========================================
-      # 10. Check generated workspace
-      # ==========================================
-      - name: Check Xcode Workspace
-        run: |
-          if [ ! -d "ios/App/App.xcworkspace" ]; then
-            echo "ERROR: App.xcworkspace was not generated!"
-            exit 1
+            echo ""
+            echo "Podfile found."
+            echo ""
+
+            pod install --repo-update
+
+          else
+
+            echo "No Podfile found."
+            echo "Skipping CocoaPods."
+
           fi
 
-          echo "Workspace found:"
-          ls -la ios/App/App.xcworkspace
-
-          echo ""
-          echo "Available schemes:"
-
-          xcodebuild \
-            -workspace ios/App/App.xcworkspace \
-            -list
 
       # ==========================================
-      # 11. Build unsigned iOS application
+      # Detect workspace/project
       # ==========================================
-      - name: Build Unsigned iOS App
+      - name: Detect Xcode Build Type
+        id: detect
         run: |
+
+          if [ -d "ios/App/App.xcworkspace" ]; then
+
+            echo "type=workspace" >> $GITHUB_OUTPUT
+
+            echo "Using App.xcworkspace"
+
+          elif [ -d "ios/App/App.xcodeproj" ]; then
+
+            echo "type=project" >> $GITHUB_OUTPUT
+
+            echo "Using App.xcodeproj"
+
+          else
+
+            echo "No Xcode project found!"
+            exit 1
+
+          fi
+
+
+      # ==========================================
+      # Show available schemes
+      # ==========================================
+      - name: Show Xcode Schemes
+        run: |
+
+          if [ -d "ios/App/App.xcworkspace" ]; then
+
+            xcodebuild \
+              -workspace ios/App/App.xcworkspace \
+              -list
+
+          else
+
+            xcodebuild \
+              -project ios/App/App.xcodeproj \
+              -list
+
+          fi
+
+
+      # ==========================================
+      # Build using Workspace
+      # ==========================================
+      - name: Build iOS App - Workspace
+        if: steps.detect.outputs.type == 'workspace'
+        run: |
+
           set -o pipefail
 
           xcodebuild \
@@ -136,51 +213,86 @@ jobs:
             -configuration Release \
             -sdk iphoneos \
             -derivedDataPath "$GITHUB_WORKSPACE/build" \
-            CODE_SIGN_IDENTITY="" \
-            CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
             clean build
 
+
       # ==========================================
-      # 12. Find App.app
+      # Build using Project
       # ==========================================
-      - name: Find Built App
+      - name: Build iOS App - Project
+        if: steps.detect.outputs.type == 'project'
         run: |
-          echo "Searching for App.app..."
+
+          set -o pipefail
+
+          xcodebuild \
+            -project ios/App/App.xcodeproj \
+            -scheme App \
+            -configuration Release \
+            -sdk iphoneos \
+            -derivedDataPath "$GITHUB_WORKSPACE/build" \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            clean build
+
+
+      # ==========================================
+      # Locate generated .app
+      # ==========================================
+      - name: Locate App
+        run: |
+
+          echo "Searching for generated .app..."
 
           find build -name "*.app" -type d -print
 
-          APP_PATH="build/Build/Products/Release-iphoneos/App.app"
+          APP_PATH=$(find build/Build/Products/Release-iphoneos \
+            -maxdepth 1 \
+            -name "*.app" \
+            -type d \
+            | head -n 1)
 
-          if [ ! -d "$APP_PATH" ]; then
-            echo "ERROR: App.app was not generated."
+          if [ -z "$APP_PATH" ]; then
+
+            echo "ERROR: No .app generated!"
             exit 1
+
           fi
 
-          echo "App found:"
-          ls -la "$APP_PATH"
+          echo "APP_PATH=$APP_PATH" >> $GITHUB_ENV
+
+          echo ""
+          echo "Found:"
+          echo "$APP_PATH"
+
 
       # ==========================================
-      # 13. Create Payload
+      # Create Payload
       # ==========================================
       - name: Create Payload
         run: |
+
           rm -rf Payload
 
-          mkdir -p Payload
+          mkdir Payload
 
-          cp -R \
-            build/Build/Products/Release-iphoneos/App.app \
-            Payload/App.app
+          cp -R "$APP_PATH" Payload/
 
-          echo "Payload:"
-          ls -la Payload/App.app
+          echo ""
+          echo "Payload created:"
+          ls -la Payload
+
 
       # ==========================================
-      # 14. Create IPA
+      # Create IPA
       # ==========================================
-      - name: Create Unsigned IPA
+      - name: Create IPA
         run: |
+
           rm -f AlertNet-Unsigned.ipa
 
           zip -r \
@@ -188,16 +300,18 @@ jobs:
             Payload
 
           echo ""
-          echo "================================"
+          echo "====================================="
           echo "IPA CREATED SUCCESSFULLY"
-          echo "================================"
+          echo "====================================="
+          echo ""
 
           ls -lh AlertNet-Unsigned.ipa
 
+
       # ==========================================
-      # 15. Upload IPA
+      # Upload IPA
       # ==========================================
-      - name: Upload IPA Artifact
+      - name: Upload IPA
         uses: actions/upload-artifact@v4
         with:
           name: AlertNet-iOS-Unsigned
