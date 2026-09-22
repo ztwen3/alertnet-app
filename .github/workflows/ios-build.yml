@@ -22,15 +22,17 @@ jobs:
       - name: Install dependencies
         run: npm install
 
+      # تجاوز pod install التلقائي لمنع الخطأ
       - name: Build Web App and Sync Capacitor
         run: |
           npm run build
-          npx cap sync ios
+          npx cap sync ios --no-pod-install
 
+      # تشغيل pod install مع تحديد مسار المشروع بوضوح
       - name: Install CocoaPods
         run: |
           cd ios/App
-          pod install
+          pod install --project-directory=.
 
       - name: Build Unsigned IPA
         run: |
